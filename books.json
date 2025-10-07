@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "judul": "Laskar Pelangi (Revisi)",
+    "author": "Andrea Hirata",
+    "publikasi": 2006
+  },
+  {
+    "id": 2,
+    "judul": "Bumi Manusia",
+    "author": "Pramoedya Ananta Toer",
+    "publikasi": 1980
+  },
+  {
+    "id": 3,
+    "judul": "No Game No Life",
+    "author": "microsoft",
+    "publikasi": 2012
+  }
+]
