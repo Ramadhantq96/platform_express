@@ -1,71 +1,199 @@
-const express = require('express');
-const fs = require('fs');
-const router = express.Router();
+const { PrismaClient } = require('../generated/prisma/client');
 
-const filePath = 'books.json';
+const router = require('express').Router();
+const prisma = new PrismaClient();
 
-// Baca data dari JSON
-function getBooks() {
-  const data = fs.readFileSync(filePath);
-  return JSON.parse(data);
-}
+// router.get('/', async(req, res) => {
+//   try { 
+//     const { search } = req.query;
 
-// Simpan data ke JSON
-function saveBooks(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
+//     const where = {};
 
-// GET semua buku
-router.get('/', (req, res) => {
-  const books = getBooks();
-  res.json(books);
+//     if(search) {
+//       where.OR = [
+//         { title: { contains: search } },
+//       ]
+//     }
+
+//     const books = await prisma.book.findMany({
+//       where,
+//     }); // SELECT * FROM book
+//     return res.json({
+//       status: true,
+//       message: 'Berhasil mengambil data buku',
+//       data: books
+//     });
+//   } catch (error) {
+//     res.json({
+//       status: false,
+//       message: error.message
+//     });
+//   }
+// });
+
+router.get('/', async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    const where = {};
+
+    // Jika query "search" diisi, cari di beberapa kolom sekaligus
+    if (search && search.trim() !== '') {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { author: { contains: search, mode: 'insensitive' } },
+        { publisher: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const books = await prisma.book.findMany({
+      where,
+      orderBy: { id: 'desc' }, // urutkan dari data terbaru
+    });
+
+    return res.json({
+      status: true,
+      message: search
+        ? `Hasil pencarian untuk "${search}"`
+        : 'Berhasil mengambil semua data buku',
+      data: books,
+    });
+  } catch (error) {
+    res.json({
+      status: false,
+      message: error.message,
+    });
+  }
 });
 
-// GET satu buku berdasarkan ID
-router.get('/:id', (req, res) => {
-  const books = getBooks();
-  const book = books.find(b => b.id === parseInt(req.params.id));
-  if (!book) return res.status(404).json({ message: 'Buku tidak ditemukan' });
-  res.json(book);
+// GET - ambil satu buku berdasarkan ID
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const book = await prisma.book.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!book) {
+      throw new Error('Buku tidak ditemukan');
+    }
+
+    return res.json({
+      status: true,
+      message: 'Berhasil mengambil data buku berdasarkan ID',
+      data: book,
+    });
+  } catch (error) {
+    res.json({
+      status: false,
+      message: error.message,
+    });
+  }
 });
 
-// POST buku baru
-router.post('/', (req, res) => {
-  const books = getBooks();
-  const newBook = {
-    id: books.length ? books[books.length - 1].id + 1 : 1,
-    judul: req.body.judul,
-    author: req.body.author,
-    publikasi: req.body.publikasi
-  };
+router.post('/', async(req, res) => {
+  try {
+    const { title, author, publisher, year } = req.body;
 
-  books.push(newBook);
-  saveBooks(books);
-  res.status(201).json(newBook);
+    const exist = await prisma.book.findFirst({
+      where: {
+        title: title
+      }
+    });
+
+    if(exist) {
+      throw new Error('Buku sudah terdaftar');
+    }
+
+    const book = await prisma.book.create({
+      data: {
+        title,
+        author,
+        publisher,
+        year: Number(year)
+      }
+    });
+    return res.json({
+      status: true,
+      message: 'Berhasil menambahkan data buku',
+      data: book
+    });
+  } catch (error) {
+    res.json({
+      status: false,
+      message: error.message
+    });
+  }
 });
 
-// PUT update buku
-router.put('/:id', (req, res) => {
-  const books = getBooks();
-  const index = books.findIndex(b => b.id === parseInt(req.params.id));
+// PUT - update data buku
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, author, publisher, year } = req.body;
 
-  if (index === -1) return res.status(404).json({ message: 'Buku tidak ditemukan' });
+    const exist = await prisma.book.findUnique({
+      where: { id: Number(id) },
+    });
 
-  books[index] = { ...books[index], ...req.body };
-  saveBooks(books);
-  res.json(books[index]);
+    if (!exist) {
+      throw new Error('Buku tidak ditemukan');
+    }
+
+    const updatedBook = await prisma.book.update({
+      where: { id: Number(id) },
+      data: {
+        title,
+        author,
+        publisher,
+        year: Number(year),
+      },
+    });
+
+    return res.json({
+      status: true,
+      message: 'Berhasil memperbarui data buku',
+      data: updatedBook,
+    });
+  } catch (error) {
+    res.json({
+      status: false,
+      message: error.message,
+    });
+  }
 });
 
-// DELETE buku
-router.delete('/:id', (req, res) => {
-  const books = getBooks();
-  const filtered = books.filter(b => b.id !== parseInt(req.params.id));
+// DELETE - hapus data buku
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  if (filtered.length === books.length)
-    return res.status(404).json({ message: 'Buku tidak ditemukan' });
+    const exist = await prisma.book.findUnique({
+      where: { id: Number(id) },
+    });
 
-  saveBooks(filtered);
-  res.json({ message: 'Buku berhasil dihapus' });
+    if (!exist) {
+      throw new Error('Buku tidak ditemukan');
+    }
+
+    await prisma.book.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({
+      status: true,
+      message: 'Berhasil menghapus data buku',
+    });
+  } catch (error) {
+    res.json({
+      status: false,
+      message: error.message,
+    });
+  }
 });
 
 module.exports = router;
+
+//tambahkan put(update + delete)
+//kalau bisa searching dan paging

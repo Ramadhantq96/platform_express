@@ -8,5 +8,6 @@ const bookRouter = require('./book');
 // Gunakan route
 router.use('/students', studentRouter);
 router.use('/books', bookRouter);
+router.use('/book', require('./book'));
 
 module.exports = router;
