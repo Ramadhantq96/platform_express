@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { get, post, put, destroy } = require('../controllers/book')
+const { get, post, put, destroy } = require('../controllers/buyers')
 
 router.get("/", get);
 router.post("/", post);
