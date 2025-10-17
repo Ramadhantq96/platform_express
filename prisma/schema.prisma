@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -12,6 +9,14 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+// ENUM UNTUK AUTHORIZATION ROLE
+
+enum Role {
+  ADMIN
+  MEMBER
+  BUYER
 }
 
 model Book {
@@ -31,24 +36,32 @@ enum OrderStatus {
   CANCELLED
 }
 
-model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  username  String    @unique
-  password  String
-  full_name String?
-  phone     String?
-  gender    String?
-  dob       DateTime?
-  avatar    String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
 
-  orders  Order[]
-  ratings Rating[]
+// USER MODEL DENGAN AUTHENTICATION DAN AUTHORIZATION
+
+model User {
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  username   String    @unique
+  password   String
+  full_name  String?
+  phone      String?
+  gender     String?
+  dob        DateTime?
+  avatar     String?
+  role       Role      @default(MEMBER) //untuk authorization
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relasi
+  orders     Order[]
+  ratings    Rating[]
+  tokens     AuthToken[] // token login (opsional tapi berguna)
 
   @@map("users")
 }
+
+// BUYER MODEL (DIBERI ROLE SECARA DEFAULT)
 
 model Buyer {
   id              Int       @id @default(autoincrement())
@@ -56,6 +69,7 @@ model Buyer {
   username        String?
   activation_code String?
   expired         DateTime?
+  role            Role      @default(BUYER) // 🔐 role untuk buyer
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -144,7 +158,7 @@ model Rating {
   orderId   Int?
   productId Int
   buyerId   Int?
-  userId    Int? // <-- ditambah
+  userId    Int?
   rating    Int
   review    String?
   createdAt DateTime @default(now())
@@ -153,11 +167,27 @@ model Rating {
   order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   buyer   Buyer?  @relation(fields: [buyerId], references: [id], onDelete: SetNull)
-  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull) // <-- relasi balik ke User
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([productId])
   @@index([orderId])
   @@index([buyerId])
   @@index([userId])
   @@map("ratings")
+}
+
+
+// MODEL TAMBAHAN UNTUK TOKEN LOGIN
+
+model AuthToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  createdAt DateTime @default(now())
+  expiredAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_tokens")
 }

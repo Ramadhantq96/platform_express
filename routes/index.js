@@ -8,6 +8,9 @@ router.use('/products', require('./products'));
 router.use('/orders', require('./orders'));
 router.use('/detail_orders', require('./detail_orders'));
 router.use('/ratings', require('./ratings'));
+router.use('/ratings', require('./ratings'));
+router.use('/auth', require('./auth'));
+
 
 
 

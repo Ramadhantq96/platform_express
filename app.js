@@ -4,12 +4,14 @@ const PORT = 3000;
 
 // Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));[]
 
 // Import router dari folder routes
 const indexRouter = require('./routes/index');
+const authRoutes = require('./routes/auth');
 
 // Gunakan router
+app.use('/', authRoutes);
 app.use('/', indexRouter);
 
 // Jalankan server
